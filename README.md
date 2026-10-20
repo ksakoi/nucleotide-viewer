@@ -56,6 +56,22 @@ npm run deploy                  # build + firebase deploy --only hosting
 npm run build && firebase hosting:channel:deploy preview --expires 7d
 ```
 
+### GitHub Actions による自動デプロイ
+
+`.github/workflows/deploy.yml` が次のように動きます。
+
+| きっかけ | 動作 |
+| --- | --- |
+| すべての push / PR | lint・テスト・ビルド |
+| `main` への push | 本番 (`live`) にデプロイ |
+| PR（このリポジトリ内のブランチから） | 7日間有効なプレビュー URL にデプロイし、PR にコメント |
+
+リポジトリの Settings → Secrets and variables → Actions に次の2つを登録すると有効になります
+（未登録の間はデプロイのジョブがスキップされ、チェックだけ実行されます）。
+
+- **Variables** `FIREBASE_PROJECT_ID`: Firebase のプロジェクト ID
+- **Secrets** `FIREBASE_SERVICE_ACCOUNT`: デプロイ用サービスアカウントの JSON キー（ファイルの中身をそのまま貼り付け）
+
 ## 技術スタック
 
 React + Vite (TypeScript) / Tailwind CSS v4 + shadcn/ui (new-york) / Lucide React / Zustand / Canvas API
