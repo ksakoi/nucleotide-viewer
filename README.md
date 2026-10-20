@@ -31,6 +31,31 @@ npm run lint     # oxlint
 AB1_FIXTURE_DIR=/path/to/ab1-files npm test
 ```
 
+## Firebase Hosting へのデプロイ
+
+`firebase.json` に設定済みです（公開ディレクトリ `dist`、SPA リライト、キャッシュ設定）。
+`Content-Security-Policy` で `connect-src 'self'` などを指定しており、外部への通信をブラウザ側でも禁止しています。
+
+初回のみ:
+
+```bash
+npm install -g firebase-tools   # または各コマンドを npx firebase-tools ... で実行
+firebase login
+firebase use --add              # Firebase プロジェクトを選択 (.firebaserc が作成されます)
+```
+
+デプロイ:
+
+```bash
+npm run deploy                  # build + firebase deploy --only hosting
+```
+
+公開前に確認したい場合はプレビューチャンネルが使えます（URL は7日で失効）:
+
+```bash
+npm run build && firebase hosting:channel:deploy preview --expires 7d
+```
+
 ## 技術スタック
 
 React + Vite (TypeScript) / Tailwind CSS v4 + shadcn/ui (new-york) / Lucide React / Zustand / Canvas API
