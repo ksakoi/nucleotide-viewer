@@ -2,13 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Check, Copy, Rows2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { baseColor } from '@/lib/chromatogram'
-import { featureColor, isDisplayedFeature } from '@/lib/feature-colors'
-import type { SequenceDocument } from '@/lib/formats'
+import { featureColor, featureLocationText } from '@/lib/feature-colors'
+import { layoutFeatureLines } from '@/lib/feature-layout'
 import { t } from '@/lib/i18n'
 import { complementBase } from '@/lib/sequence'
 import { cn } from '@/lib/utils'
-import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
 
 /** 100 bases per line when a full line fits (desktop widths), otherwise 60. */
@@ -24,46 +22,48 @@ function lineWidth(bases: number, numberDigits: number, charWidth: number, doubl
 const GROUP = 10
 /** Must match a strand row's rendered height (h-6). */
 const ROW_HEIGHT = 24
-/** Space between double-stranded blocks. */
+/** Space below each block (strands + features) when the block has more than one row. */
 const BLOCK_GAP = 10
+/** Feature bar height and the space between lanes. */
+const LANE_HEIGHT = 18
+const LANE_GAP = 3
+/** Space between the strands and the first feature lane. */
+const FEATURE_TOP_GAP = 4
 /** Extra lines rendered above and below the visible area. */
 const OVERSCAN = 8
+/** Arrowhead length in px. */
+const ARROW = 7
 
-type Tints = (string | undefined)[]
+/** Horizontal position, in ch, of the k-th base of a line (a 1ch gap follows every group of 10). */
+const basePos = (k: number) => k + Math.floor(k / GROUP)
 
-/**
- * Background per base from the features covering it (the first listed
- * feature wins); the selected feature is drawn on top with a stronger tint.
- * With both strands shown, reverse-strand features are painted on the
- * bottom strand and strandless ones on both.
- */
-function featureTints(
-  doc: SequenceDocument,
-  selectedFeature: number | null,
-  doubleStrand: boolean,
-): { top: Tints; bottom: Tints } {
-  const top: Tints = new Array(doc.sequence.length)
-  const bottom: Tints = doubleStrand ? new Array(doc.sequence.length) : []
-  const paint = (index: number, selected: boolean) => {
-    const feature = doc.features[index]
-    const base = featureColor(feature)
-    // Selected: stronger tint plus a solid underline, keeping the letters readable.
-    const color = selected ? `linear-gradient(to top, ${base} 0 2px, ${base}47 2px)` : `${base}26`
-    const targets = !doubleStrand ? [top] : feature.strand === 1 ? [top] : feature.strand === -1 ? [bottom] : [top, bottom]
-    for (const tints of targets) {
-      for (const { start, end } of feature.segments) {
-        for (let i = start; i < end; i++) if (selected || tints[i] === undefined) tints[i] = color
-      }
-    }
-  }
-  doc.features.forEach((feature, i) => {
-    if (isDisplayedFeature(feature)) paint(i, false)
-  })
-  if (selectedFeature !== null) paint(selectedFeature, true)
-  return { top, bottom }
+function blockHeightFor(lanes: number, doubleStrand: boolean): number {
+  const strands = (doubleStrand ? 2 : 1) * ROW_HEIGHT
+  const features = lanes > 0 ? FEATURE_TOP_GAP + lanes * (LANE_HEIGHT + LANE_GAP) : 0
+  return strands + features + (doubleStrand || lanes > 0 ? BLOCK_GAP : 0)
 }
 
-/** Full sequence as text (optionally with its complementary strand), rendering only the visible lines. */
+/** Index of the line containing pixel offset y (offsets are cumulative line tops, length lineCount + 1). */
+function lineAt(offsets: number[], y: number): number {
+  let lo = 0
+  let hi = offsets.length - 2
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1
+    if (offsets[mid] <= y) lo = mid
+    else hi = mid - 1
+  }
+  return Math.max(0, lo)
+}
+
+const ARROW_CLIP = {
+  right: `polygon(0 0, calc(100% - ${ARROW}px) 0, 100% 50%, calc(100% - ${ARROW}px) 100%, 0 100%)`,
+  left: `polygon(${ARROW}px 0, 100% 0, 100% 100%, ${ARROW}px 100%, 0 50%)`,
+}
+
+/**
+ * Full sequence as text (optionally with its complementary strand) and the
+ * features drawn as bars under each line, rendering only the visible lines.
+ */
 export function SequencePanel() {
   const doc = useViewerStore((s) => s.doc)
   const selectedIndex = useViewerStore((s) => s.selectedIndex)
@@ -71,7 +71,7 @@ export function SequencePanel() {
   const setSelectedIndex = useViewerStore((s) => s.setSelectedIndex)
   const showComplement = useViewerStore((s) => s.showComplement)
   const toggleComplement = useViewerStore((s) => s.toggleComplement)
-  const dark = useThemeStore((s) => s.theme === 'dark')
+  const selectFeature = useViewerStore((s) => s.selectFeature)
   const sectionRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const frame = useRef(0)
@@ -82,11 +82,6 @@ export function SequencePanel() {
   const probeRef = useRef<HTMLSpanElement>(null)
   const [copied, setCopied] = useState(false)
 
-  const tints = useMemo(
-    () => (doc ? featureTints(doc, selectedFeature, showComplement) : { top: [], bottom: [] }),
-    [doc, selectedFeature, showComplement],
-  )
-  const blockHeight = showComplement ? 2 * ROW_HEIGHT + BLOCK_GAP : ROW_HEIGHT
   // Line-number column sized to the longest position label.
   const numberDigits = doc ? String(doc.sequence.length).length : 1
   const basesPerLine =
@@ -94,6 +89,16 @@ export function SequencePanel() {
       ? BASES_PER_LINE_WIDE
       : BASES_PER_LINE_NARROW
   const lineCount = doc ? Math.ceil(doc.sequence.length / basesPerLine) : 0
+
+  const featureLines = useMemo(() => (doc ? layoutFeatureLines(doc, basesPerLine) : []), [doc, basesPerLine])
+  /** Top of each line in px; lines with more feature lanes are taller. */
+  const offsets = useMemo(() => {
+    const tops = [0]
+    for (let line = 0; line < lineCount; line++) {
+      tops.push(tops[line] + blockHeightFor(featureLines[line]?.length ?? 0, showComplement))
+    }
+    return tops
+  }, [featureLines, lineCount, showComplement])
 
   useLayoutEffect(() => {
     const el = containerRef.current
@@ -117,15 +122,15 @@ export function SequencePanel() {
   }, [doc])
 
   // Keep the same bases at the top when the strand count or line length changes.
-  const prevLayout = useRef({ blockHeight, basesPerLine })
+  const prevLayout = useRef({ offsets, basesPerLine, doc })
   useLayoutEffect(() => {
     const el = containerRef.current
     const prev = prevLayout.current
-    if (!el || (prev.blockHeight === blockHeight && prev.basesPerLine === basesPerLine)) return
-    const topBase = (el.scrollTop / prev.blockHeight) * prev.basesPerLine
-    el.scrollTop = (topBase / basesPerLine) * blockHeight
-    prevLayout.current = { blockHeight, basesPerLine }
-  }, [blockHeight, basesPerLine])
+    prevLayout.current = { offsets, basesPerLine, doc }
+    if (!el || prev.offsets === offsets || prev.doc !== doc) return
+    const topBase = lineAt(prev.offsets, el.scrollTop) * prev.basesPerLine
+    el.scrollTop = offsets[Math.floor(topBase / basesPerLine)] ?? 0
+  }, [offsets, basesPerLine, doc])
 
   const onScroll = useCallback(() => {
     cancelAnimationFrame(frame.current)
@@ -144,21 +149,22 @@ export function SequencePanel() {
   useEffect(() => {
     const el = containerRef.current
     if (!el || selectedIndex === null) return
-    const top = Math.floor(selectedIndex / basesPerLine) * blockHeight
-    if (top < el.scrollTop || top > el.scrollTop + el.clientHeight - 2 * blockHeight) {
-      el.scrollTop = top - el.clientHeight / 2
+    const line = Math.floor(selectedIndex / basesPerLine)
+    const top = offsets[line]
+    const bottom = offsets[line + 1] ?? top
+    if (top < el.scrollTop || bottom > el.scrollTop + el.clientHeight) {
+      el.scrollTop = top - el.clientHeight / 2 + (bottom - top) / 2
     }
-  }, [selectedIndex, doc, blockHeight, basesPerLine])
+  }, [selectedIndex, doc, offsets, basesPerLine])
 
   if (!doc) return null
 
-  const first = Math.max(0, Math.floor(scrollTop / blockHeight) - OVERSCAN)
-  const last = Math.min(lineCount, Math.ceil((scrollTop + viewHeight) / blockHeight) + OVERSCAN)
+  const first = Math.max(0, lineAt(offsets, scrollTop) - OVERSCAN)
+  const last = Math.min(lineCount, lineAt(offsets, scrollTop + viewHeight) + 1 + OVERSCAN)
 
   const strandRow = (line: number, strand: 'top' | 'bottom') => {
     const start = line * basesPerLine
     const lineEnd = Math.min(start + basesPerLine, doc.sequence.length)
-    const rowTints = strand === 'top' ? tints.top : tints.bottom
     const groups = []
     for (let g = start; g < lineEnd; g += GROUP) {
       const chars = []
@@ -170,11 +176,10 @@ export function SequencePanel() {
             key={i}
             data-index={i}
             className={cn(
-              'cursor-pointer rounded-sm hover:bg-accent',
+              'text-foreground cursor-pointer rounded-sm hover:bg-accent',
               q !== undefined && q < 20 && 'opacity-50',
               i === selectedIndex && 'ring-1 ring-yellow-500 bg-yellow-300/70 dark:bg-yellow-400/30',
             )}
-            style={{ color: baseColor(base, dark), background: i === selectedIndex ? undefined : rowTints[i] }}
           >
             {base}
           </span>,
@@ -203,12 +208,96 @@ export function SequencePanel() {
     )
   }
 
+  /** Empty columns matching the line number (and strand label) so bars line up with the bases. */
+  const leadingSpace = (
+    <>
+      <span className="mr-3 shrink-0" style={{ width: `${numberDigits}ch` }} />
+      {/* Same font size as the 5'/3' label, so its ch width matches. */}
+      {showComplement && <span className="mr-2 w-[2ch] shrink-0 text-xs" />}
+    </>
+  )
+
+  const featureLanes = (line: number) => {
+    const lineStart = line * basesPerLine
+    const lineWidthCh = basePos(Math.min(basesPerLine, doc.sequence.length - lineStart) - 1) + 1
+    return featureLines[line].map((lane, laneIndex) => (
+      <div
+        key={laneIndex}
+        className="flex"
+        style={{ height: LANE_HEIGHT, marginTop: laneIndex === 0 ? FEATURE_TOP_GAP : LANE_GAP }}
+      >
+        {leadingSpace}
+        <div className="relative shrink-0" style={{ width: `${lineWidthCh}ch` }}>
+          {lane.map((item) => {
+            const feature = doc.features[item.featureIndex]
+            const color = featureColor(feature)
+            const dimmed = selectedFeature !== null && selectedFeature !== item.featureIndex
+            const x = (base: number) => basePos(base - lineStart)
+            const spanStart = x(item.parts[0].start)
+            const spanEnd = x(item.parts[item.parts.length - 1].end - 1) + 1
+            // Label on the widest part of the feature on this line.
+            const labelPart = item.parts.reduce((best, p, i) =>
+              p.end - p.start > item.parts[best].end - item.parts[best].start ? i : best, 0)
+            const title = `${feature.name} (${feature.type}) ${featureLocationText(feature)}`
+            return (
+              <div
+                key={item.featureIndex}
+                className={cn('absolute inset-y-0 transition-opacity', dimmed && 'opacity-35 dark:opacity-50')}
+                style={{ left: `${spanStart}ch`, width: `${spanEnd - spanStart}ch` }}
+              >
+                {/* Thin connector between the parts of a split feature (e.g. exons). */}
+                {item.parts.length > 1 && (
+                  <div className="absolute inset-x-0 top-1/2 h-px" style={{ background: color }} />
+                )}
+                {item.parts.map((part, i) => {
+                  const left = x(part.start) - spanStart
+                  const width = x(part.end - 1) + 1 - x(part.start)
+                  const arrow = i === item.arrowPart ? item.arrow : null
+                  // Positioned in the sequence's monospace ch units; the label font is set inside.
+                  return (
+                    <div
+                      key={i}
+                      className="absolute inset-y-0 overflow-hidden rounded-[3px]"
+                      style={{
+                        left: `${left}ch`,
+                        width: `${width}ch`,
+                        background: color,
+                        clipPath: arrow ? ARROW_CLIP[arrow] : undefined,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        title={title}
+                        onClick={() => selectFeature(item.featureIndex)}
+                        className={cn(
+                          'flex size-full cursor-pointer items-center font-sans text-[11px] font-medium text-white',
+                          selectedFeature === item.featureIndex && 'font-semibold',
+                        )}
+                        style={{
+                          paddingLeft: arrow === 'left' ? ARROW + 2 : 4,
+                          paddingRight: arrow === 'right' ? ARROW + 2 : 4,
+                        }}
+                      >
+                        {i === labelPart && <span className="truncate leading-none">{feature.name}</span>}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    ))
+  }
+
   const lines = []
   for (let line = first; line < last; line++) {
     lines.push(
-      <div key={line} style={{ height: blockHeight }}>
+      <div key={line} style={{ height: offsets[line + 1] - offsets[line] }}>
         {strandRow(line, 'top')}
         {showComplement && strandRow(line, 'bottom')}
+        {featureLanes(line)}
       </div>,
     )
   }
@@ -255,8 +344,8 @@ export function SequencePanel() {
             {'0'.repeat(100)}
           </span>
         </span>
-        <div className="relative my-3" style={{ height: lineCount * blockHeight }}>
-          <div className="absolute inset-x-0" style={{ top: first * blockHeight }}>
+        <div className="relative my-3" style={{ height: offsets[lineCount] }}>
+          <div className="absolute inset-x-0" style={{ top: offsets[first] }}>
             {/* As wide as the longest line and centered, so a short last line stays left-aligned with the rest. */}
             <div className="mx-auto w-max">{lines}</div>
           </div>

@@ -1,6 +1,7 @@
 import type { SequenceFeature } from '@/lib/formats'
 
-const PALETTE = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#84cc16']
+// Mid-dark tones so white labels on feature bars stay readable.
+const PALETTE = ['#d97706', '#059669', '#2563eb', '#db2777', '#7c3aed', '#dc2626', '#0d9488', '#65a30d']
 
 /** Stable color per feature type so e.g. all CDS share a color. */
 export function featureColor(feature: Pick<SequenceFeature, 'type'>): string {
