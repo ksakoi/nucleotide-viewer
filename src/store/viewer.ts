@@ -25,6 +25,8 @@ interface ViewerState {
   selectedIndex: number | null
   /** Index of the selected feature in doc.features, or null. */
   selectedFeature: number | null
+  /** Show the complementary strand under the sequence. */
+  showComplement: boolean
 
   loadFile: (file: File) => Promise<void>
   loadBuffer: (fileName: string, buffer: ArrayBuffer) => void
@@ -32,6 +34,7 @@ interface ViewerState {
   setGain: (gain: number) => void
   setSelectedIndex: (index: number | null) => void
   selectFeature: (index: number | null) => void
+  toggleComplement: () => void
   reset: () => void
 }
 
@@ -45,6 +48,7 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
   notice: null,
   fileName: null,
   doc: null,
+  showComplement: true,
   ...initialView,
 
   loadFile: async (file) => {
@@ -68,6 +72,8 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
         notice: recordCount > 1 ? t.multipleRecords(recordCount) : null,
         fileName,
         doc,
+        // Sequence files are double-stranded constructs; a Sanger read is a single strand.
+        showComplement: doc.chromatogram === null,
         ...initialView,
       })
     } catch (err) {
@@ -93,6 +99,7 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
     // Segments are in biological order; jump to the leftmost one as displayed.
     if (feature) get().setSelectedIndex(feature.segments[feature.strand === -1 ? feature.segments.length - 1 : 0].start)
   },
+  toggleComplement: () => set({ showComplement: !get().showComplement }),
   reset: () =>
     set({ status: 'idle', error: null, notice: null, fileName: null, doc: null, ...initialView }),
 }))
