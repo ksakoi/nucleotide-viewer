@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 
-import { parseAb1 } from '@/lib/abif/parser'
+import { Ab1ParseError, parseAb1 } from '@/lib/abif/parser'
 import type { Ab1Data } from '@/lib/abif/types'
+import { t } from '@/lib/i18n'
 
 export const MIN_ZOOM = 0.5
 export const MAX_ZOOM = 10
@@ -64,10 +65,13 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
       })
       set({ status: 'ready', error: null, fileName, data, ...initialView })
     } catch (err) {
-      set({
-        status: 'error',
-        error: `${fileName}: ${err instanceof Error ? err.message : String(err)}`,
-      })
+      const message =
+        err instanceof Ab1ParseError
+          ? t.parseErrors[err.code]
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      set({ status: 'error', error: `${fileName}: ${message}` })
     }
   },
 

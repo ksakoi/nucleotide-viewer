@@ -2,6 +2,7 @@ import { MoveVertical, ZoomIn, ZoomOut } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { t } from '@/lib/i18n'
 import { MAX_GAIN, MAX_ZOOM, MIN_GAIN, MIN_ZOOM, useViewerStore } from '@/store/viewer'
 
 // Sliders work on a log scale so each step feels like the same zoom factor.
@@ -26,11 +27,11 @@ export function ViewerToolbar() {
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="縮小" onClick={() => setZoom(zoom / 1.25)}>
+        <Button variant="ghost" size="icon" aria-label={t.zoomOut} onClick={() => setZoom(zoom / 1.25)}>
           <ZoomOut />
         </Button>
         <Slider
-          aria-label="横方向ズーム"
+          aria-label={t.horizontalZoom}
           className="w-32"
           min={toLog(MIN_ZOOM)}
           max={toLog(MAX_ZOOM)}
@@ -38,14 +39,14 @@ export function ViewerToolbar() {
           value={[toLog(zoom)]}
           onValueChange={([v]) => setZoom(fromLog(v))}
         />
-        <Button variant="ghost" size="icon" aria-label="拡大" onClick={() => setZoom(zoom * 1.25)}>
+        <Button variant="ghost" size="icon" aria-label={t.zoomIn} onClick={() => setZoom(zoom * 1.25)}>
           <ZoomIn />
         </Button>
       </div>
       <div className="flex items-center gap-3">
         <MoveVertical className="text-muted-foreground size-4" aria-hidden />
         <Slider
-          aria-label="波形の高さ"
+          aria-label={t.traceHeight}
           className="w-28"
           min={toLog(MIN_GAIN)}
           max={toLog(MAX_GAIN)}
@@ -60,7 +61,7 @@ export function ViewerToolbar() {
         </div>
       ) : (
         <div className="text-muted-foreground ml-auto hidden text-xs md:block">
-          クリックで塩基を選択 · ← → で移動 · Ctrl+ホイールでズーム
+          {t.viewerHint}
         </div>
       )}
     </div>

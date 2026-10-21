@@ -35,9 +35,9 @@ describe('parseAb1', () => {
   })
 
   it('rejects non-ABIF input', () => {
-    expect(() => parseAb1(new TextEncoder().encode('>seq\nACGT\n').buffer as ArrayBuffer)).toThrow(
-      Ab1ParseError,
-    )
+    const parse = () => parseAb1(new TextEncoder().encode('>seq\nACGT\n').buffer as ArrayBuffer)
+    expect(parse).toThrow(Ab1ParseError)
+    expect(parse).toThrow(expect.objectContaining({ code: 'notAbif' }))
   })
 
   // Optional check against real instrument files, e.g. Biopython's Tests/Abi.
