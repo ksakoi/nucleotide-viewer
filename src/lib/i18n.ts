@@ -23,6 +23,8 @@ export type FormatErrorCode =
   | 'missingTraces'
 
 const ja = {
+  /** <title>: product name plus the terms people search for. */
+  pageTitle: 'Web sequence viewer – ブラウザで使える DNA 配列・波形ビューア',
   appHeading: 'ブラウザで使える DNA 配列・シーケンス波形ビューア',
   appTagline: 'サンガーシーケンスの波形 (.ab1) や FASTA / GenBank / SnapGene ファイルを、インストール不要・無料で閲覧・変換できます',
   seoDescription:
@@ -93,6 +95,7 @@ const ja = {
 export type Messages = typeof ja
 
 const en: Messages = {
+  pageTitle: 'Web sequence viewer – Free online DNA sequence & .ab1 chromatogram viewer',
   appHeading: 'Online DNA sequence and chromatogram viewer',
   appTagline: 'Open Sanger .ab1 chromatograms and FASTA, GenBank or SnapGene files for free, with nothing to install',
   seoDescription:

@@ -44,7 +44,7 @@ export function renderSeoHead(locale: Locale): string {
     image: url(OG_IMAGE.path),
   }
   return [
-    `<title>${escapeHtml(APP_NAME)}</title>`,
+    `<title>${escapeHtml(t.pageTitle)}</title>`,
     `<meta name="description" content="${description}" />`,
     `<link rel="canonical" href="${url(page.path)}" />`,
     `<link rel="alternate" hreflang="en" href="${url(PAGES.en.path)}" />`,
@@ -54,7 +54,7 @@ export function renderSeoHead(locale: Locale): string {
     `<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="${escapeHtml(APP_NAME)}" />`,
-    `<meta property="og:title" content="${escapeHtml(APP_NAME)}" />`,
+    `<meta property="og:title" content="${escapeHtml(t.pageTitle)}" />`,
     `<meta property="og:description" content="${description}" />`,
     `<meta property="og:url" content="${url(page.path)}" />`,
     `<meta property="og:locale" content="${page.ogLocale}" />`,
