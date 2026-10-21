@@ -1,4 +1,4 @@
-# Nucleotide Viewer
+# Web sequence viewer
 
 ブラウザだけで動作する軽量な DNA シーケンス波形 (.ab1)・配列ファイル (FASTA / GenBank / SnapGene) ビューア兼変換ツールです。
 ファイルは File API でローカルに読み込まれ、サーバーへ送信されることはありません。
@@ -38,6 +38,13 @@ npm run lint     # oxlint
 AB1_FIXTURE_DIR=/path/to/ab1-files npm test        # .ab1
 FORMAT_FIXTURE_DIR=/path/to/seq-files npm test     # .fasta / .gb / .dna（全形式への変換で配列・フィーチャーが保たれるか）
 ```
+
+## SEO
+
+- 公開 URL: `https://nucleotide-viewer.web.app/`（英語）と `/ja/`（日本語）。`src/seo.ts` の `SITE_URL` を変えると、独自ドメインにまとめて切り替わります
+- ビルド時に `vite.config.ts` のプラグインが、`index.html` に title / description / canonical / hreflang / OGP / 構造化データ (JSON-LD) と、JavaScript なしでも読める本文を埋め込み、日本語版 `dist/ja/index.html` を生成します。文言は `src/lib/i18n.ts` と共通です
+- 表示言語は URL（`/ja/`、`?lang=en|ja`）を優先し、指定がなければブラウザの言語で決まります
+- `public/robots.txt`・`public/sitemap.xml`・`public/404.html`・`public/og-image.png`（共有用画像）。存在しない URL は 404 を返します
 
 ## Firebase Hosting へのデプロイ
 
