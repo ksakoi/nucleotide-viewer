@@ -3,11 +3,10 @@ import { FileUp, FlaskConical, Loader2, ShieldCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ACCEPTED_EXTENSIONS } from '@/lib/formats'
 import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useViewerStore } from '@/store/viewer'
-
-export const ACCEPTED_EXTENSIONS = '.ab1,.abi'
 
 /** Large drop target shown when no file is loaded. */
 export function FileDropZone() {
@@ -58,6 +57,7 @@ export function FileDropZone() {
           <div className="space-y-1">
             <p className="text-lg font-medium">{t.dropHere}</p>
             <p className="text-muted-foreground text-sm">{t.orClick}</p>
+            <p className="text-muted-foreground pt-2 font-mono text-xs">{t.supportedFormats}</p>
           </div>
           <input
             ref={inputRef}

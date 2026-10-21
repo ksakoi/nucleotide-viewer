@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Dna, FileUp, Moon, Sun, Upload, X } from 'lucide-react'
+import { AlertCircle, Dna, FileUp, Info, Moon, Sun, Upload, X } from 'lucide-react'
 
 import { Chromatogram } from '@/components/chromatogram'
-import { ACCEPTED_EXTENSIONS, FileDropZone } from '@/components/file-drop-zone'
+import { ExportMenu } from '@/components/export-menu'
+import { FeaturesPanel } from '@/components/features-panel'
+import { FileDropZone } from '@/components/file-drop-zone'
 import { SequencePanel } from '@/components/sequence-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ViewerToolbar } from '@/components/viewer-toolbar'
 import { baseColor } from '@/lib/chromatogram'
 import { BASES } from '@/lib/abif/types'
+import { ACCEPTED_EXTENSIONS, FORMAT_LABELS } from '@/lib/formats'
 import { t } from '@/lib/i18n'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
@@ -54,13 +57,13 @@ function useWindowFileDrop(onFile: (file: File) => void) {
 }
 
 export default function App() {
-  const { data, fileName, error, status, loadFile, reset } = useViewerStore()
+  const { doc, fileName, error, notice, status, loadFile, reset } = useViewerStore()
   const { theme, toggle } = useThemeStore()
   const dragging = useWindowFileDrop(loadFile)
   const inputRef = useRef<HTMLInputElement>(null)
   const dark = theme === 'dark'
 
-  const highQuality = data?.qualities.filter((q) => q >= 20).length ?? 0
+  const highQuality = doc?.qualities.filter((q) => q >= 20).length ?? 0
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -74,7 +77,7 @@ export default function App() {
             </Badge>
           )}
           <div className="ml-auto flex items-center gap-1">
-            {data && (
+            {doc && (
               <>
                 <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
                   <Upload />
@@ -111,7 +114,14 @@ export default function App() {
           </div>
         )}
 
-        {!data ? (
+        {notice && (
+          <div className="bg-muted text-muted-foreground flex items-start gap-2 rounded-lg border px-4 py-3 text-sm">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        )}
+
+        {!doc ? (
           <div className="flex flex-1 flex-col justify-center gap-6 py-8">
             <div className="space-y-2 text-center">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.appHeading}</h1>
@@ -123,32 +133,41 @@ export default function App() {
           </div>
         ) : (
           <Card className="gap-4">
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                {data.sampleName ?? fileName}
-                <Badge variant="outline">{data.sequence.length.toLocaleString()} bp</Badge>
-                {data.qualities.length > 0 && (
-                  <Badge variant="outline">
-                    Q20+ {((highQuality / data.qualities.length) * 100).toFixed(1)}%
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span className="truncate">{fileName}</span>
-                <span className="flex items-center gap-3">
-                  {BASES.map((b) => (
-                    <span key={b} className="flex items-center gap-1 font-mono">
-                      <span className="inline-block h-0.5 w-4 rounded" style={{ background: baseColor(b, dark) }} />
-                      {b}
+            <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+              <div className="grid min-w-0 gap-1.5">
+                <CardTitle className="flex flex-wrap items-center gap-2">
+                  <span className="break-all">{doc.name}</span>
+                  <Badge variant="outline">{doc.sequence.length.toLocaleString()} bp</Badge>
+                  <Badge variant="outline">{doc.topology === 'circular' ? t.circular : t.linear}</Badge>
+                  {doc.qualities.length > 0 && (
+                    <Badge variant="outline">
+                      Q20+ {((highQuality / doc.qualities.length) * 100).toFixed(1)}%
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="truncate">{fileName}</span>
+                  <Badge variant="secondary">{FORMAT_LABELS[doc.sourceFormat]}</Badge>
+                  {doc.description && <span className="min-w-0 truncate">{doc.description}</span>}
+                  {doc.chromatogram && (
+                    <span className="flex items-center gap-3">
+                      {BASES.map((b) => (
+                        <span key={b} className="flex items-center gap-1 font-mono">
+                          <span className="inline-block h-0.5 w-4 rounded" style={{ background: baseColor(b, dark) }} />
+                          {b}
+                        </span>
+                      ))}
                     </span>
-                  ))}
-                </span>
-              </CardDescription>
+                  )}
+                </CardDescription>
+              </div>
+              <ExportMenu />
             </CardHeader>
             <CardContent className="space-y-4">
               <ViewerToolbar />
-              <Chromatogram data={data} />
+              {doc.chromatogram && <Chromatogram data={doc.chromatogram} />}
               <SequencePanel />
+              <FeaturesPanel />
             </CardContent>
           </Card>
         )}

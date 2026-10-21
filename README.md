@@ -1,11 +1,17 @@
 # Nucleotide Viewer
 
-ブラウザだけで動作する軽量な DNA シーケンス波形 (.ab1) ビューアです。
+ブラウザだけで動作する軽量な DNA シーケンス波形 (.ab1)・配列ファイル (FASTA / GenBank / SnapGene) ビューア兼変換ツールです。
 ファイルは File API でローカルに読み込まれ、サーバーへ送信されることはありません。
 
 ## 機能 (MVP)
 
-- `.ab1` ファイルのドラッグ＆ドロップ / ファイル選択による読み込み（画面全体がドロップ対象）
+- ファイルのドラッグ＆ドロップ / ファイル選択による読み込み（画面全体がドロップ対象）
+  - 対応形式: `.ab1` (波形), FASTA (`.fasta` `.fa` など), GenBank (`.gb` `.gbk`), SnapGene (`.dna`)
+  - 形式は拡張子ではなくファイルの中身で判定。複数配列を含む FASTA / GenBank は先頭の 1 件を表示
+- 相互変換: 読み込んだ配列を FASTA / GenBank / SnapGene (.dna) でエクスポート（ブラウザ内で生成してダウンロード）
+  - フィーチャー（位置・向き・qualifier）、環状/直鎖、説明文を保持。.ab1 の波形と品質値は配列ファイルには含まれません
+- フィーチャー表示: 配列の各行の下に、向きを示す矢印付きの帯で表示（重なるものは段を分けて表示、エキソンなど分割されたものは細線でつなぐ）。帯または一覧のクリックで選択
+- 二本鎖表示: 配列ファイル（.dna / .fasta / .gbk）では相補鎖 (3'→5') も並べて表示（ボタンで切り替え、.ab1 では初期状態オフ）。配列の文字は黒（ダークモードでは白）
 - 依存ライブラリなしの ABIF パーサー（`src/lib/abif/parser.ts`）
   - 塩基配列 (PBAS)、ピーク位置 (PLOC)、波形 (DATA9–12 + FWO_)、品質値 (PCON)、サンプル名 (SMPL)
 - Canvas による波形描画（A: 緑, T: 赤, C: 青, G: 黒）。表示範囲のみを再描画
@@ -26,10 +32,11 @@ npm run lint     # oxlint
 ```
 
 `public/sample.ab1` はデモ用の合成データです（`npm run generate:sample` で再生成）。
-実機の .ab1 ファイルでパーサーを検証する場合は、ディレクトリを指定してテストを実行します:
+実機ファイルでパーサーを検証する場合は、ディレクトリを指定してテストを実行します:
 
 ```bash
-AB1_FIXTURE_DIR=/path/to/ab1-files npm test
+AB1_FIXTURE_DIR=/path/to/ab1-files npm test        # .ab1
+FORMAT_FIXTURE_DIR=/path/to/seq-files npm test     # .fasta / .gb / .dna（全形式への変換で配列・フィーチャーが保たれるか）
 ```
 
 ## Firebase Hosting へのデプロイ

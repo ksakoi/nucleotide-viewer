@@ -1,4 +1,4 @@
-import type { ParseErrorCode } from '../i18n'
+import { FormatError } from '../formats/errors'
 import { BASES, type Ab1Data, type Base } from './types'
 
 /**
@@ -27,15 +27,8 @@ interface DirEntry {
   offset: number
 }
 
-/** Parse failure; `code` selects the localized message shown to the user. */
-export class Ab1ParseError extends Error {
-  readonly code: ParseErrorCode
-
-  constructor(code: ParseErrorCode, detail?: string) {
-    super(detail ? `${code}: ${detail}` : code)
-    this.name = 'Ab1ParseError'
-    this.code = code
-  }
+export class Ab1ParseError extends FormatError {
+  override name = 'Ab1ParseError'
 }
 
 function readTag4(view: DataView, offset: number): string {
