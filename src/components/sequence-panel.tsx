@@ -16,9 +16,9 @@ const BASES_PER_LINE_WIDE = 100
 const BASES_PER_LINE_NARROW = 60
 
 /** Width in px of a full line: number column, strand labels, bases and group gaps (see strandRow). */
-function lineWidth(bases: number, charWidth: number, doubleStrand: boolean): number {
-  const chars = 7 + bases + Math.ceil(bases / GROUP) + (doubleStrand ? 4 : 0)
-  const margins = 12 + (doubleStrand ? 8 : 0)
+function lineWidth(bases: number, numberDigits: number, charWidth: number, doubleStrand: boolean): number {
+  const chars = numberDigits + bases + Math.ceil(bases / GROUP) - 1 + (doubleStrand ? 4 : 0)
+  const margins = 12 + (doubleStrand ? 16 : 0)
   return chars * charWidth + margins
 }
 const GROUP = 10
@@ -87,8 +87,10 @@ export function SequencePanel() {
     [doc, selectedFeature, showComplement],
   )
   const blockHeight = showComplement ? 2 * ROW_HEIGHT + BLOCK_GAP : ROW_HEIGHT
+  // Line-number column sized to the longest position label.
+  const numberDigits = doc ? String(doc.sequence.length).length : 1
   const basesPerLine =
-    charWidth > 0 && contentWidth >= lineWidth(BASES_PER_LINE_WIDE, charWidth, showComplement)
+    charWidth > 0 && contentWidth >= lineWidth(BASES_PER_LINE_WIDE, numberDigits, charWidth, showComplement)
       ? BASES_PER_LINE_WIDE
       : BASES_PER_LINE_NARROW
   const lineCount = doc ? Math.ceil(doc.sequence.length / basesPerLine) : 0
@@ -179,7 +181,7 @@ export function SequencePanel() {
         )
       }
       groups.push(
-        <span key={g} className="mr-[1ch]">
+        <span key={g} className="mr-[1ch] last:mr-0">
           {chars}
         </span>,
       )
@@ -188,12 +190,15 @@ export function SequencePanel() {
     const [left, right] = strand === 'top' ? ["5'", "3'"] : ["3'", "5'"]
     return (
       <div key={strand} className="flex h-6 whitespace-nowrap">
-        <span className="text-muted-foreground mr-3 inline-block w-[7ch] shrink-0 text-right select-none">
+        <span
+          className="text-muted-foreground mr-3 inline-block shrink-0 text-right select-none"
+          style={{ width: `${numberDigits}ch` }}
+        >
           {strand === 'top' ? start + 1 : ''}
         </span>
         {showComplement && <span className="text-muted-foreground/70 mr-2 w-[2ch] shrink-0 text-xs leading-6 select-none">{left}</span>}
         <span>{groups}</span>
-        {showComplement && <span className="text-muted-foreground/70 text-xs leading-6 select-none">{right}</span>}
+        {showComplement && <span className="text-muted-foreground/70 ml-2 text-xs leading-6 select-none">{right}</span>}
       </div>
     )
   }
@@ -252,7 +257,8 @@ export function SequencePanel() {
         </span>
         <div className="relative my-3" style={{ height: lineCount * blockHeight }}>
           <div className="absolute inset-x-0" style={{ top: first * blockHeight }}>
-            {lines}
+            {/* As wide as the longest line and centered, so a short last line stays left-aligned with the rest. */}
+            <div className="mx-auto w-max">{lines}</div>
           </div>
         </div>
       </div>
