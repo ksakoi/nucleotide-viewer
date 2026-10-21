@@ -166,8 +166,8 @@ export default function App() {
             <CardContent className="space-y-4">
               <ViewerToolbar />
               {doc.chromatogram && <Chromatogram data={doc.chromatogram} />}
-              <FeaturesPanel />
               <SequencePanel />
+              <FeaturesPanel />
             </CardContent>
           </Card>
         )}

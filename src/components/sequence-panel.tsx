@@ -63,10 +63,11 @@ export function SequencePanel() {
   const showComplement = useViewerStore((s) => s.showComplement)
   const toggleComplement = useViewerStore((s) => s.toggleComplement)
   const dark = useThemeStore((s) => s.theme === 'dark')
+  const sectionRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const frame = useRef(0)
   const [scrollTop, setScrollTop] = useState(0)
-  const [viewHeight, setViewHeight] = useState(288)
+  const [viewHeight, setViewHeight] = useState(600)
   const [copied, setCopied] = useState(false)
 
   const tints = useMemo(
@@ -105,6 +106,11 @@ export function SequencePanel() {
     })
   }, [])
   useEffect(() => () => cancelAnimationFrame(frame.current), [])
+
+  // The features list sits below this panel: bring the panel on screen when a feature is picked.
+  useEffect(() => {
+    if (selectedFeature !== null) sectionRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [selectedFeature])
 
   // Keep the selected base in view, scrolling only this panel (never the page).
   useEffect(() => {
@@ -183,7 +189,7 @@ export function SequencePanel() {
   }
 
   return (
-    <div className="space-y-2">
+    <div ref={sectionRef} className="scroll-mt-16 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium">{t.sequence}</h2>
         <div className="flex items-center gap-1">
@@ -206,7 +212,7 @@ export function SequencePanel() {
       <div
         ref={containerRef}
         onScroll={onScroll}
-        className="bg-muted/40 relative max-h-72 overflow-auto rounded-lg border px-3 font-mono text-sm leading-6"
+        className="bg-muted/40 relative max-h-[max(24rem,70vh)] overflow-auto rounded-lg border px-3 font-mono text-sm leading-6"
         onClick={(e) => {
           const index = (e.target as HTMLElement).dataset.index
           if (index !== undefined) setSelectedIndex(Number(index))
