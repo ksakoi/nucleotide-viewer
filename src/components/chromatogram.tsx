@@ -9,6 +9,7 @@ import {
   xToSample,
 } from '@/lib/chromatogram'
 import { BASES, type Ab1Data, type Base } from '@/lib/abif/types'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
@@ -283,7 +284,7 @@ export function Chromatogram({ data }: { data: Ab1Data }) {
       onScroll={onScroll}
       onKeyDown={onKeyDown}
       tabIndex={0}
-      aria-label="クロマトグラム (← → で塩基を移動、Ctrl+ホイールでズーム)"
+      aria-label={t.chromatogramLabel}
       className="bg-background relative overflow-x-auto overflow-y-hidden rounded-lg border outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       <div className="relative" style={{ width }} onMouseDown={(e) => selectAt(e.clientX)}>

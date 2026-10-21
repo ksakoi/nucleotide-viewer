@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ViewerToolbar } from '@/components/viewer-toolbar'
 import { baseColor } from '@/lib/chromatogram'
 import { BASES } from '@/lib/abif/types'
+import { t } from '@/lib/i18n'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
 
@@ -77,14 +78,14 @@ export default function App() {
               <>
                 <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
                   <Upload />
-                  <span className="hidden sm:inline">開く</span>
+                  <span className="hidden sm:inline">{t.open}</span>
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="ファイルを閉じる" onClick={reset}>
+                <Button variant="ghost" size="icon" aria-label={t.closeFile} onClick={reset}>
                   <X />
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" aria-label="テーマ切り替え" onClick={toggle}>
+            <Button variant="ghost" size="icon" aria-label={t.toggleTheme} onClick={toggle}>
               {dark ? <Sun /> : <Moon />}
             </Button>
           </div>
@@ -113,9 +114,9 @@ export default function App() {
         {!data ? (
           <div className="flex flex-1 flex-col justify-center gap-6 py-8">
             <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">DNA シーケンス波形ビューア</h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.appHeading}</h1>
               <p className="text-muted-foreground">
-                サンガーシーケンスの .ab1 ファイルをブラウザだけで安全に閲覧できます
+                {t.appTagline}
               </p>
             </div>
             <FileDropZone />
@@ -157,7 +158,7 @@ export default function App() {
         <div className="bg-background/80 pointer-events-none fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
           <div className="border-primary flex flex-col items-center gap-3 rounded-xl border-2 border-dashed px-16 py-12">
             <FileUp className="size-8" />
-            <p className="font-medium">ドロップして .ab1 ファイルを開く</p>
+            <p className="font-medium">{t.dropToOpen}</p>
           </div>
         </div>
       )}

@@ -1,3 +1,4 @@
+import type { ParseErrorCode } from '../i18n'
 import { BASES, type Ab1Data, type Base } from './types'
 
 /**
@@ -26,10 +27,14 @@ interface DirEntry {
   offset: number
 }
 
+/** Parse failure; `code` selects the localized message shown to the user. */
 export class Ab1ParseError extends Error {
-  constructor(message: string) {
-    super(message)
+  readonly code: ParseErrorCode
+
+  constructor(code: ParseErrorCode, detail?: string) {
+    super(detail ? `${code}: ${detail}` : code)
     this.name = 'Ab1ParseError'
+    this.code = code
   }
 }
 
@@ -57,14 +62,14 @@ function readDirEntry(view: DataView, offset: number): DirEntry {
 
 function readDirectory(view: DataView): Map<string, DirEntry> {
   if (view.byteLength < 6 + DIR_ENTRY_SIZE || readTag4(view, 0) !== 'ABIF') {
-    throw new Ab1ParseError('ABIF 形式のファイルではありません')
+    throw new Ab1ParseError('notAbif')
   }
   const root = readDirEntry(view, 6)
   const entries = new Map<string, DirEntry>()
   for (let i = 0; i < root.numElements; i++) {
     const at = root.offset + i * DIR_ENTRY_SIZE
     if (at + DIR_ENTRY_SIZE > view.byteLength) {
-      throw new Ab1ParseError('ディレクトリがファイル範囲外を指しています')
+      throw new Ab1ParseError('directoryOutOfRange')
     }
     const entry = readDirEntry(view, at)
     if (entry.offset + entry.dataSize > view.byteLength) continue
@@ -118,13 +123,13 @@ export function parseAb1(buffer: ArrayBuffer): Ab1Data {
   const peakEntry = pick(entries, 'PLOC2', 'PLOC1')
   const orderEntry = entries.get('FWO_1')
   if (!baseEntry || !peakEntry || !orderEntry) {
-    throw new Ab1ParseError('塩基配列またはピーク位置のデータが見つかりません')
+    throw new Ab1ParseError('missingBasecalls')
   }
 
   const sequence = readChars(view, baseEntry).toUpperCase()
   const peakLocations = Array.from(readInt16Array(view, peakEntry))
   if (peakLocations.length !== sequence.length) {
-    throw new Ab1ParseError('塩基数とピーク位置の数が一致しません')
+    throw new Ab1ParseError('peakCountMismatch')
   }
 
   // FWO_ gives the base for analyzed channels DATA9..DATA12 (e.g. "GATC").
@@ -134,12 +139,12 @@ export function parseAb1(buffer: ArrayBuffer): Ab1Data {
     const base = order[i] as Base
     const dataEntry = entries.get(`DATA${9 + i}`)
     if (!BASES.includes(base) || !dataEntry) {
-      throw new Ab1ParseError('波形データ (DATA9-12) が見つかりません')
+      throw new Ab1ParseError('missingTraces')
     }
     traces[base] = readInt16Array(view, dataEntry)
   }
   for (const base of BASES) {
-    if (!traces[base]) throw new Ab1ParseError(`塩基 ${base} の波形データがありません`)
+    if (!traces[base]) throw new Ab1ParseError('missingTraces', `no channel for ${base}`)
   }
 
   const traceLength = Math.min(...BASES.map((b) => traces[b].length))

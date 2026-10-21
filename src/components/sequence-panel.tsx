@@ -3,6 +3,7 @@ import { Check, Copy } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { baseColor } from '@/lib/chromatogram'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
@@ -90,10 +91,10 @@ export function SequencePanel() {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">塩基配列</h2>
+        <h2 className="text-sm font-medium">{t.sequence}</h2>
         <Button variant="ghost" size="sm" onClick={() => void copy()}>
           {copied ? <Check /> : <Copy />}
-          {copied ? 'コピーしました' : '配列をコピー'}
+          {copied ? t.copied : t.copySequence}
         </Button>
       </div>
       <div

@@ -3,6 +3,7 @@ import { FileUp, FlaskConical, Loader2, ShieldCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useViewerStore } from '@/store/viewer'
 
@@ -55,8 +56,8 @@ export function FileDropZone() {
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-lg font-medium">.ab1 ファイルをドラッグ＆ドロップ</p>
-            <p className="text-muted-foreground text-sm">またはクリックしてファイルを選択</p>
+            <p className="text-lg font-medium">{t.dropHere}</p>
+            <p className="text-muted-foreground text-sm">{t.orClick}</p>
           </div>
           <input
             ref={inputRef}
@@ -73,11 +74,11 @@ export function FileDropZone() {
         <div className="flex flex-col items-center justify-between gap-3 px-4 py-3 sm:flex-row">
           <p className="text-muted-foreground flex items-center gap-2 text-xs">
             <ShieldCheck className="size-4 shrink-0 text-green-600 dark:text-green-400" />
-            ファイルはブラウザ内でのみ処理され、外部へ送信されることはありません
+            {t.privacyNote}
           </p>
           <Button variant="outline" size="sm" onClick={() => void loadSample()}>
             <FlaskConical />
-            サンプルを開く
+            {t.openSample}
           </Button>
         </div>
       </CardContent>
