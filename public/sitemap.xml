@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://nucleotide-viewer.web.app/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nucleotide-viewer.web.app/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://nucleotide-viewer.web.app/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nucleotide-viewer.web.app/" />
+  </url>
+  <url>
+    <loc>https://nucleotide-viewer.web.app/ja/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nucleotide-viewer.web.app/" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://nucleotide-viewer.web.app/ja/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nucleotide-viewer.web.app/" />
+  </url>
+</urlset>

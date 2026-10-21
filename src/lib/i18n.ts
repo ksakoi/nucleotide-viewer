@@ -1,9 +1,14 @@
 /**
- * Minimal UI localization: Japanese when the browser's preferred language is
- * Japanese, English otherwise. The locale is fixed for the page's lifetime.
+ * Minimal UI localization. The URL decides first (/ja/ is Japanese,
+ * ?lang=en|ja overrides), otherwise Japanese when the browser's preferred
+ * language is Japanese and English for everything else. The locale is fixed
+ * for the page's lifetime.
  */
 
 export type Locale = 'ja' | 'en'
+
+/** Product name; not translated. */
+export const APP_NAME = 'Web sequence viewer'
 
 export type FormatErrorCode =
   | 'unknownFormat'
@@ -18,8 +23,32 @@ export type FormatErrorCode =
   | 'missingTraces'
 
 const ja = {
-  appTagline: '波形 (.ab1) や配列ファイルをブラウザだけで安全に閲覧・変換できます',
-  appHeading: 'DNA シーケンス波形ビューア',
+  /** <title>: product name plus the terms people search for. */
+  pageTitle: 'Web sequence viewer – ブラウザで使える DNA 配列・波形ビューア',
+  appHeading: 'ブラウザで使える DNA 配列・シーケンス波形ビューア',
+  appTagline: 'サンガーシーケンスの波形 (.ab1) や FASTA / GenBank / SnapGene ファイルを、インストール不要・無料で閲覧・変換できます',
+  seoDescription:
+    'ブラウザで使える無料の DNA 配列ビューア。サンガーシーケンスの .ab1 波形、FASTA・GenBank・SnapGene (.dna) ファイルを開いて、フィーチャーや二本鎖を確認し、形式を変換できます。ファイルは外部に送信されません。',
+  landingFeaturesTitle: '主な機能',
+  landingFeatures: [
+    {
+      title: 'シーケンス波形 (.ab1) の表示',
+      body: 'サンガーシーケンスの波形を塩基・品質値と並べて表示。ズームやスクロールで N や重なったピークを確認できます。',
+    },
+    {
+      title: 'FASTA / GenBank / SnapGene に対応',
+      body: 'プラスミドやゲノムの配列ファイルを開き、二本鎖の配列と、その下にフィーチャー（CDS・プロモーターなど）を表示します。',
+    },
+    {
+      title: '形式の相互変換',
+      body: 'FASTA・GenBank・SnapGene (.dna) 形式でエクスポート。フィーチャーや環状/直鎖の情報も引き継ぎます。',
+    },
+    {
+      title: 'ファイルは送信されない',
+      body: 'ファイルはブラウザ内だけで読み込まれ、サーバーへ送信されません。未発表の配列データも安心して扱えます。',
+    },
+  ],
+  languageLabel: '言語',
   open: '開く',
   closeFile: 'ファイルを閉じる',
   toggleTheme: 'テーマ切り替え',
@@ -66,8 +95,31 @@ const ja = {
 export type Messages = typeof ja
 
 const en: Messages = {
-  appTagline: 'View and convert chromatograms (.ab1) and sequence files securely, entirely in your browser',
-  appHeading: 'DNA Chromatogram Viewer',
+  pageTitle: 'Web sequence viewer – Free online DNA sequence & .ab1 chromatogram viewer',
+  appHeading: 'Online DNA sequence and chromatogram viewer',
+  appTagline: 'Open Sanger .ab1 chromatograms and FASTA, GenBank or SnapGene files for free, with nothing to install',
+  seoDescription:
+    'Free in-browser DNA sequence viewer for Sanger .ab1 chromatograms, FASTA, GenBank and SnapGene (.dna) files. View features on both strands and convert formats. Nothing is uploaded.',
+  landingFeaturesTitle: 'Features',
+  landingFeatures: [
+    {
+      title: 'Sanger chromatograms (.ab1)',
+      body: 'See trace peaks aligned with base calls and quality values, and zoom and scroll to check Ns and mixed peaks.',
+    },
+    {
+      title: 'FASTA, GenBank and SnapGene files',
+      body: 'Open plasmid and genome sequences and see both strands with annotated features (CDS, promoters and more) drawn underneath.',
+    },
+    {
+      title: 'Format conversion',
+      body: 'Export to FASTA, GenBank or SnapGene (.dna), keeping features and circular or linear topology.',
+    },
+    {
+      title: 'Private by design',
+      body: 'Files are read inside your browser and never uploaded to a server, so unpublished sequences stay on your computer.',
+    },
+  ],
+  languageLabel: 'Language',
   open: 'Open',
   closeFile: 'Close file',
   toggleTheme: 'Toggle theme',
@@ -118,6 +170,14 @@ export function detectLocale(languages: readonly string[]): Locale {
   return languages[0]?.toLowerCase().startsWith('ja') ? 'ja' : 'en'
 }
 
+/** URL first (/ja/ path, then ?lang=), then the browser's preferred language. */
+export function resolveLocale(pathname: string, search: string, languages: readonly string[]): Locale {
+  const param = new URLSearchParams(search).get('lang')
+  if (param === 'ja' || param === 'en') return param
+  if (/^\/ja(\/|$)/.test(pathname)) return 'ja'
+  return detectLocale(languages)
+}
+
 export function getMessages(locale: Locale): Messages {
   return catalogs[locale]
 }
@@ -129,7 +189,12 @@ const browserLanguages =
       ? navigator.languages
       : [navigator.language]
 
-export const locale: Locale = detectLocale(browserLanguages)
+// Read through globalThis: this module is also imported at build time (src/seo.ts), where there is no location.
+const pageLocation = (globalThis as { location?: { pathname: string; search: string } }).location
+
+export const locale: Locale = pageLocation
+  ? resolveLocale(pageLocation.pathname, pageLocation.search, browserLanguages)
+  : detectLocale(browserLanguages)
 
 /** Messages for the current browser locale. */
 export const t: Messages = getMessages(locale)

@@ -13,7 +13,7 @@ import { ViewerToolbar } from '@/components/viewer-toolbar'
 import { baseColor } from '@/lib/chromatogram'
 import { BASES } from '@/lib/abif/types'
 import { ACCEPTED_EXTENSIONS, FORMAT_LABELS } from '@/lib/formats'
-import { t } from '@/lib/i18n'
+import { APP_NAME, locale, t } from '@/lib/i18n'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
 
@@ -70,7 +70,7 @@ export default function App() {
       <header className="bg-background/80 sticky top-0 z-10 border-b backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Dna className="size-5" />
-          <span className="font-semibold tracking-tight">Nucleotide Viewer</span>
+          <span className="font-semibold tracking-tight">{APP_NAME}</span>
           {fileName && (
             <Badge variant="secondary" className="hidden max-w-64 truncate sm:inline-flex">
               {fileName}
@@ -124,12 +124,24 @@ export default function App() {
         {!doc ? (
           <div className="flex flex-1 flex-col justify-center gap-6 py-8">
             <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.appHeading}</h1>
-              <p className="text-muted-foreground">
-                {t.appTagline}
-              </p>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{APP_NAME}</h1>
+              <p className="text-lg">{t.appHeading}</p>
+              <p className="text-muted-foreground">{t.appTagline}</p>
             </div>
             <FileDropZone />
+            <section className="mx-auto w-full max-w-3xl pt-6" aria-labelledby="features-heading">
+              <h2 id="features-heading" className="text-lg font-semibold">
+                {t.landingFeaturesTitle}
+              </h2>
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                {t.landingFeatures.map((feature) => (
+                  <li key={feature.title} className="rounded-lg border p-4">
+                    <h3 className="font-medium">{feature.title}</h3>
+                    <p className="text-muted-foreground mt-1 text-sm">{feature.body}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
         ) : (
           <Card className="gap-4">
@@ -172,6 +184,19 @@ export default function App() {
           </Card>
         )}
       </main>
+
+      <footer className="text-muted-foreground border-t py-4 text-center text-xs">
+        <nav aria-label={t.languageLabel} className="flex justify-center gap-3">
+          {/* Plain links so crawlers find both language versions. */}
+          <a href="/?lang=en" hrefLang="en" className={locale === 'en' ? 'text-foreground font-medium' : 'hover:underline'}>
+            English
+          </a>
+          <span aria-hidden>·</span>
+          <a href="/ja/" hrefLang="ja" className={locale === 'ja' ? 'text-foreground font-medium' : 'hover:underline'}>
+            日本語
+          </a>
+        </nav>
+      </footer>
 
       {dragging && status !== 'loading' && (
         <div className="bg-background/80 pointer-events-none fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
