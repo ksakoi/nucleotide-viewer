@@ -11,7 +11,16 @@ import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/theme'
 import { useViewerStore } from '@/store/viewer'
 
-const BASES_PER_LINE = 60
+/** 100 bases per line when a full line fits (desktop widths), otherwise 60. */
+const BASES_PER_LINE_WIDE = 100
+const BASES_PER_LINE_NARROW = 60
+
+/** Width in px of a full line: number column, strand labels, bases and group gaps (see strandRow). */
+function lineWidth(bases: number, charWidth: number, doubleStrand: boolean): number {
+  const chars = 7 + bases + Math.ceil(bases / GROUP) + (doubleStrand ? 4 : 0)
+  const margins = 12 + (doubleStrand ? 8 : 0)
+  return chars * charWidth + margins
+}
 const GROUP = 10
 /** Must match a strand row's rendered height (h-6). */
 const ROW_HEIGHT = 24
@@ -67,21 +76,36 @@ export function SequencePanel() {
   const containerRef = useRef<HTMLDivElement>(null)
   const frame = useRef(0)
   const [scrollTop, setScrollTop] = useState(0)
-  const [viewHeight, setViewHeight] = useState(600)
+  const [viewHeight, setViewHeight] = useState(300)
+  const [contentWidth, setContentWidth] = useState(0)
+  const [charWidth, setCharWidth] = useState(0)
+  const probeRef = useRef<HTMLSpanElement>(null)
   const [copied, setCopied] = useState(false)
 
   const tints = useMemo(
     () => (doc ? featureTints(doc, selectedFeature, showComplement) : { top: [], bottom: [] }),
     [doc, selectedFeature, showComplement],
   )
-  const lineCount = doc ? Math.ceil(doc.sequence.length / BASES_PER_LINE) : 0
   const blockHeight = showComplement ? 2 * ROW_HEIGHT + BLOCK_GAP : ROW_HEIGHT
+  const basesPerLine =
+    charWidth > 0 && contentWidth >= lineWidth(BASES_PER_LINE_WIDE, charWidth, showComplement)
+      ? BASES_PER_LINE_WIDE
+      : BASES_PER_LINE_NARROW
+  const lineCount = doc ? Math.ceil(doc.sequence.length / basesPerLine) : 0
 
   useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const observer = new ResizeObserver(() => setViewHeight(el.clientHeight))
+    const measure = () => {
+      setViewHeight(el.clientHeight)
+      const style = getComputedStyle(el)
+      setContentWidth(el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+      // Monospace glyph width, measured once per font from a 100-character probe.
+      if (probeRef.current) setCharWidth(probeRef.current.getBoundingClientRect().width / 100)
+    }
+    const observer = new ResizeObserver(measure)
     observer.observe(el)
+    measure()
     return () => observer.disconnect()
   }, [doc])
 
@@ -90,14 +114,16 @@ export function SequencePanel() {
     if (containerRef.current) containerRef.current.scrollTop = 0
   }, [doc])
 
-  // Keep the same line at the top when switching between one and two strands.
-  const prevBlockHeight = useRef(blockHeight)
+  // Keep the same bases at the top when the strand count or line length changes.
+  const prevLayout = useRef({ blockHeight, basesPerLine })
   useLayoutEffect(() => {
     const el = containerRef.current
-    if (!el || prevBlockHeight.current === blockHeight) return
-    el.scrollTop = (el.scrollTop / prevBlockHeight.current) * blockHeight
-    prevBlockHeight.current = blockHeight
-  }, [blockHeight])
+    const prev = prevLayout.current
+    if (!el || (prev.blockHeight === blockHeight && prev.basesPerLine === basesPerLine)) return
+    const topBase = (el.scrollTop / prev.blockHeight) * prev.basesPerLine
+    el.scrollTop = (topBase / basesPerLine) * blockHeight
+    prevLayout.current = { blockHeight, basesPerLine }
+  }, [blockHeight, basesPerLine])
 
   const onScroll = useCallback(() => {
     cancelAnimationFrame(frame.current)
@@ -116,11 +142,11 @@ export function SequencePanel() {
   useEffect(() => {
     const el = containerRef.current
     if (!el || selectedIndex === null) return
-    const top = Math.floor(selectedIndex / BASES_PER_LINE) * blockHeight
+    const top = Math.floor(selectedIndex / basesPerLine) * blockHeight
     if (top < el.scrollTop || top > el.scrollTop + el.clientHeight - 2 * blockHeight) {
       el.scrollTop = top - el.clientHeight / 2
     }
-  }, [selectedIndex, doc, blockHeight])
+  }, [selectedIndex, doc, blockHeight, basesPerLine])
 
   if (!doc) return null
 
@@ -128,8 +154,8 @@ export function SequencePanel() {
   const last = Math.min(lineCount, Math.ceil((scrollTop + viewHeight) / blockHeight) + OVERSCAN)
 
   const strandRow = (line: number, strand: 'top' | 'bottom') => {
-    const start = line * BASES_PER_LINE
-    const lineEnd = Math.min(start + BASES_PER_LINE, doc.sequence.length)
+    const start = line * basesPerLine
+    const lineEnd = Math.min(start + basesPerLine, doc.sequence.length)
     const rowTints = strand === 'top' ? tints.top : tints.bottom
     const groups = []
     for (let g = start; g < lineEnd; g += GROUP) {
@@ -212,12 +238,18 @@ export function SequencePanel() {
       <div
         ref={containerRef}
         onScroll={onScroll}
-        className="bg-muted/40 relative max-h-[max(24rem,70vh)] overflow-auto rounded-lg border px-3 font-mono text-sm leading-6"
+        className="bg-muted/40 relative max-h-[max(12rem,35vh)] overflow-auto rounded-lg border px-3 font-mono text-sm leading-6"
         onClick={(e) => {
           const index = (e.target as HTMLElement).dataset.index
           if (index !== undefined) setSelectedIndex(Number(index))
         }}
       >
+        {/* Zero-size clip so the measuring probe never widens the scroll area. */}
+        <span aria-hidden className="invisible absolute h-0 w-0 overflow-hidden">
+          <span ref={probeRef} className="whitespace-pre">
+            {'0'.repeat(100)}
+          </span>
+        </span>
         <div className="relative my-3" style={{ height: lineCount * blockHeight }}>
           <div className="absolute inset-x-0" style={{ top: first * blockHeight }}>
             {lines}
