@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 
-import { Ab1ParseError, parseAb1 } from '@/lib/abif/parser'
-import type { Ab1Data } from '@/lib/abif/types'
+import { FormatError, readSequenceFile, type SequenceDocument } from '@/lib/formats'
 import { t } from '@/lib/i18n'
 
 export const MIN_ZOOM = 0.5
@@ -14,32 +13,38 @@ type Status = 'idle' | 'loading' | 'ready' | 'error'
 interface ViewerState {
   status: Status
   error: string | null
+  /** Informational message about the loaded file (e.g. only the first record is shown). */
+  notice: string | null
   fileName: string | null
-  data: Ab1Data | null
+  doc: SequenceDocument | null
   /** Horizontal zoom: CSS pixels per trace sample. */
   zoom: number
   /** Vertical amplification of the trace signal. */
   gain: number
-  /** Index of the selected base in data.sequence, or null. */
+  /** Index of the selected base in doc.sequence, or null. */
   selectedIndex: number | null
+  /** Index of the selected feature in doc.features, or null. */
+  selectedFeature: number | null
 
   loadFile: (file: File) => Promise<void>
   loadBuffer: (fileName: string, buffer: ArrayBuffer) => void
   setZoom: (zoom: number) => void
   setGain: (gain: number) => void
   setSelectedIndex: (index: number | null) => void
+  selectFeature: (index: number | null) => void
   reset: () => void
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
-const initialView = { zoom: 2, gain: 1, selectedIndex: null }
+const initialView = { zoom: 2, gain: 1, selectedIndex: null, selectedFeature: null }
 
 export const useViewerStore = create<ViewerState>()((set, get) => ({
   status: 'idle',
   error: null,
+  notice: null,
   fileName: null,
-  data: null,
+  doc: null,
   ...initialView,
 
   loadFile: async (file) => {
@@ -55,19 +60,20 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
 
   loadBuffer: (fileName, buffer) => {
     try {
-      const data = parseAb1(buffer)
-      console.info('[nucleotide-viewer] parsed', fileName, {
-        sampleName: data.sampleName,
-        length: data.sequence.length,
-        sequence: data.sequence,
-        peakLocations: data.peakLocations,
-        traces: data.traces,
+      const { doc, recordCount } = readSequenceFile(fileName, buffer)
+      console.info('[nucleotide-viewer] parsed', fileName, doc)
+      set({
+        status: 'ready',
+        error: null,
+        notice: recordCount > 1 ? t.multipleRecords(recordCount) : null,
+        fileName,
+        doc,
+        ...initialView,
       })
-      set({ status: 'ready', error: null, fileName, data, ...initialView })
     } catch (err) {
       const message =
-        err instanceof Ab1ParseError
-          ? t.parseErrors[err.code]
+        err instanceof FormatError
+          ? t.formatErrors[err.code]
           : err instanceof Error
             ? err.message
             : String(err)
@@ -78,8 +84,15 @@ export const useViewerStore = create<ViewerState>()((set, get) => ({
   setZoom: (zoom) => set({ zoom: clamp(zoom, MIN_ZOOM, MAX_ZOOM) }),
   setGain: (gain) => set({ gain: clamp(gain, MIN_GAIN, MAX_GAIN) }),
   setSelectedIndex: (index) => {
-    const length = get().data?.sequence.length ?? 0
+    const length = get().doc?.sequence.length ?? 0
     set({ selectedIndex: index === null || length === 0 ? null : clamp(index, 0, length - 1) })
   },
-  reset: () => set({ status: 'idle', error: null, fileName: null, data: null, ...initialView }),
+  selectFeature: (index) => {
+    const feature = index === null ? undefined : get().doc?.features[index]
+    set({ selectedFeature: feature ? index : null })
+    // Segments are in biological order; jump to the leftmost one as displayed.
+    if (feature) get().setSelectedIndex(feature.segments[feature.strand === -1 ? feature.segments.length - 1 : 0].start)
+  },
+  reset: () =>
+    set({ status: 'idle', error: null, notice: null, fileName: null, doc: null, ...initialView }),
 }))
